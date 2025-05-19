@@ -8,11 +8,13 @@ import { useToast } from '@/components/ui/use-toast';
 interface ChatContextType {
   currentChatbot: Chatbot | null;
   currentChat: Chat | null;
-  chats: { [chatbotId: string]: Chat };
+  chatHistory: { [chatbotId: string]: Chat[] };
   isTyping: boolean;
-  selectChatbot: (chatbotId: string) => void;
+  selectChatbot: (chatbotId: string, chatId?: string) => void;
+  createNewChat: (chatbotId: string) => void;
   sendMessage: (content: string) => void;
   clearChat: () => void;
+  selectChat: (chatId: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -32,7 +34,7 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [currentChatbot, setCurrentChatbot] = useState<Chatbot | null>(null);
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
-  const [chats, setChats] = useState<{ [chatbotId: string]: Chat }>({});
+  const [chatHistory, setChatHistory] = useState<{ [chatbotId: string]: Chat[] }>({});
   const [isTyping, setIsTyping] = useState<boolean>(false);
   
   const { currentUser } = useAuth();
@@ -41,34 +43,53 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Load chat history from localStorage
   useEffect(() => {
     if (currentUser) {
-      const storedChats = localStorage.getItem(`chats_${currentUser.id}`);
-      if (storedChats) {
+      const storedChatHistory = localStorage.getItem(`chatHistory_${currentUser.id}`);
+      if (storedChatHistory) {
         try {
-          const parsedChats = JSON.parse(storedChats);
+          const parsedChatHistory = JSON.parse(storedChatHistory);
+          
           // Convert string timestamps back to Date objects
-          Object.values(parsedChats).forEach((chat: any) => {
-            chat.createdAt = new Date(chat.createdAt);
-            chat.updatedAt = new Date(chat.updatedAt);
-            chat.messages.forEach((msg: any) => {
-              msg.timestamp = new Date(msg.timestamp);
+          Object.keys(parsedChatHistory).forEach((chatbotId) => {
+            parsedChatHistory[chatbotId].forEach((chat: any) => {
+              chat.createdAt = new Date(chat.createdAt);
+              chat.updatedAt = new Date(chat.updatedAt);
+              chat.messages.forEach((msg: any) => {
+                msg.timestamp = new Date(msg.timestamp);
+              });
             });
           });
-          setChats(parsedChats);
+          
+          setChatHistory(parsedChatHistory);
         } catch (e) {
-          console.error('Failed to parse stored chats', e);
+          console.error('Failed to parse stored chat history', e);
         }
       }
     }
   }, [currentUser]);
 
-  // Save chats to localStorage whenever they change
+  // Save chat history to localStorage whenever it changes
   useEffect(() => {
-    if (currentUser && Object.keys(chats).length > 0) {
-      localStorage.setItem(`chats_${currentUser.id}`, JSON.stringify(chats));
+    if (currentUser && Object.keys(chatHistory).length > 0) {
+      localStorage.setItem(`chatHistory_${currentUser.id}`, JSON.stringify(chatHistory));
     }
-  }, [chats, currentUser]);
+  }, [chatHistory, currentUser]);
 
-  const selectChatbot = (chatbotId: string) => {
+  // Generate title based on first few messages
+  const generateChatTitle = (messages: Message[]): string => {
+    if (messages.length === 0) return "New Chat";
+    
+    // Find first user message
+    const userMessage = messages.find(msg => msg.sender === 'user');
+    if (userMessage) {
+      // Truncate to first ~25 characters or first line
+      const title = userMessage.content.split('\n')[0].substring(0, 25);
+      return title.length < userMessage.content.length ? `${title}...` : title;
+    }
+    
+    return "New Chat";
+  };
+
+  const selectChatbot = (chatbotId: string, chatId?: string) => {
     const chatbot = mockChatbots.find(bot => bot.id === chatbotId);
     
     if (!chatbot) {
@@ -82,16 +103,70 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     
     setCurrentChatbot(chatbot);
     
-    // Find existing chat or create a new one
-    if (chats[chatbotId]) {
-      setCurrentChat(chats[chatbotId]);
+    // Check if we have chats for this chatbot
+    const botChats = chatHistory[chatbotId] || [];
+    
+    if (botChats.length > 0) {
+      if (chatId) {
+        // Find specific chat if chatId is provided
+        const selectedChat = botChats.find(chat => chat.id === chatId);
+        if (selectedChat) {
+          setCurrentChat(selectedChat);
+        } else {
+          // If chatId not found, use the most recent chat
+          setCurrentChat(botChats[botChats.length - 1]);
+        }
+      } else {
+        // If no chatId is provided, use the most recent chat
+        setCurrentChat(botChats[botChats.length - 1]);
+      }
     } else {
-      const newChat = createMockChat(chatbotId);
-      setChats(prevChats => ({
-        ...prevChats,
-        [chatbotId]: newChat
-      }));
-      setCurrentChat(newChat);
+      // Create a new chat if none exists
+      createNewChat(chatbotId);
+    }
+  };
+
+  const createNewChat = (chatbotId: string) => {
+    const chatbot = mockChatbots.find(bot => bot.id === chatbotId);
+    
+    if (!chatbot) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Chatbot not found",
+      });
+      return;
+    }
+    
+    const newChat = createMockChat(chatbotId);
+    
+    // Add new chat to history
+    setChatHistory(prev => {
+      const botChats = prev[chatbotId] || [];
+      return {
+        ...prev,
+        [chatbotId]: [...botChats, newChat]
+      };
+    });
+    
+    // Set as current chat
+    setCurrentChat(newChat);
+    setCurrentChatbot(chatbot);
+    
+    toast({
+      title: "New chat created",
+      description: `Started a new conversation with ${chatbot.name}`,
+    });
+  };
+
+  const selectChat = (chatId: string) => {
+    if (!currentChatbot) return;
+    
+    const botChats = chatHistory[currentChatbot.id] || [];
+    const selectedChat = botChats.find(chat => chat.id === chatId);
+    
+    if (selectedChat) {
+      setCurrentChat(selectedChat);
     }
   };
 
@@ -128,12 +203,24 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       updatedAt: new Date()
     };
     
-    // Update state
+    // Update current chat
     setCurrentChat(updatedChat);
-    setChats(prevChats => ({
-      ...prevChats,
-      [currentChatbot.id]: updatedChat
-    }));
+    
+    // Update chat in history
+    setChatHistory(prev => {
+      const botChats = [...(prev[currentChatbot.id] || [])];
+      const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
+      
+      if (chatIndex !== -1) {
+        botChats[chatIndex] = updatedChat;
+      }
+      
+      return {
+        ...prev,
+        [currentChatbot.id]: botChats
+      };
+    });
+    
     setIsTyping(true);
     
     try {
@@ -145,18 +232,36 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         .filter(msg => msg.id !== tempBotMessage.id)
         .concat(botResponse);
       
+      // Update title if this is first user message
+      let chatTitle = updatedChat.title;
+      if (!chatTitle && userMessage === updatedChat.messages[1]) {
+        chatTitle = generateChatTitle([userMessage]);
+      }
+      
       const finalChat: Chat = {
         ...updatedChat,
         messages: finalMessages,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        title: chatTitle
       };
       
-      // Update state with final response
+      // Update current chat
       setCurrentChat(finalChat);
-      setChats(prevChats => ({
-        ...prevChats,
-        [currentChatbot.id]: finalChat
-      }));
+      
+      // Update chat in history
+      setChatHistory(prev => {
+        const botChats = [...(prev[currentChatbot.id] || [])];
+        const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
+        
+        if (chatIndex !== -1) {
+          botChats[chatIndex] = finalChat;
+        }
+        
+        return {
+          ...prev,
+          [currentChatbot.id]: botChats
+        };
+      });
     } catch (error) {
       console.error("Error generating response:", error);
       toast({
@@ -174,25 +279,49 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       };
       
       setCurrentChat(errorChat);
-      setChats(prevChats => ({
-        ...prevChats,
-        [currentChatbot.id]: errorChat
-      }));
+      
+      // Update chat in history
+      setChatHistory(prev => {
+        const botChats = [...(prev[currentChatbot.id] || [])];
+        const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
+        
+        if (chatIndex !== -1) {
+          botChats[chatIndex] = errorChat;
+        }
+        
+        return {
+          ...prev,
+          [currentChatbot.id]: botChats
+        };
+      });
     } finally {
       setIsTyping(false);
     }
   };
 
   const clearChat = () => {
-    if (!currentChatbot) return;
+    if (!currentChatbot || !currentChat) return;
     
+    // Create new empty chat
     const newChat = createMockChat(currentChatbot.id);
     
+    // Update current chat
     setCurrentChat(newChat);
-    setChats(prevChats => ({
-      ...prevChats,
-      [currentChatbot.id]: newChat
-    }));
+    
+    // Update chat in history
+    setChatHistory(prev => {
+      const botChats = [...(prev[currentChatbot.id] || [])];
+      const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
+      
+      if (chatIndex !== -1) {
+        botChats[chatIndex] = newChat;
+      }
+      
+      return {
+        ...prev,
+        [currentChatbot.id]: botChats
+      };
+    });
     
     toast({
       title: "Chat cleared",
@@ -203,11 +332,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const value = {
     currentChatbot,
     currentChat,
-    chats,
+    chatHistory,
     isTyping,
     selectChatbot,
+    createNewChat,
     sendMessage,
     clearChat,
+    selectChat,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

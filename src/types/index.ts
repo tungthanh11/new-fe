@@ -42,6 +42,7 @@ export type Chat = {
   messages: Message[];
   createdAt: Date;
   updatedAt: Date;
+  title?: string; // Optional title for the chat
 };
 
 export type UserPreferences = {

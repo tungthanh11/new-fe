@@ -177,11 +177,12 @@ export const createMockMessages = (chatbotId: string): Message[] => {
 // Mock chats
 export const createMockChat = (chatbotId: string): Chat => {
   return {
-    id: `chat-${chatbotId}`,
+    id: `chat-${chatbotId}-${Date.now()}`,
     chatbotId: chatbotId,
     messages: createMockMessages(chatbotId),
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-    updatedAt: new Date()
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    title: "New Chat"
   };
 };
 

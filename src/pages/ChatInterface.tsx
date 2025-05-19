@@ -10,16 +10,33 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Message } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
-import { Send } from 'lucide-react';
+import { History, Plus, Send, Trash2 } from 'lucide-react';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger 
+} from '@/components/ui/popover';
+import { format } from 'date-fns';
 
 const ChatInterface: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { currentChatbot, currentChat, selectChatbot, sendMessage, isTyping } = useChat();
+  const { 
+    currentChatbot, 
+    currentChat, 
+    chatHistory,
+    selectChatbot, 
+    createNewChat,
+    sendMessage, 
+    selectChat,
+    clearChat,
+    isTyping 
+  } = useChat();
   const [inputValue, setInputValue] = useState('');
   const { currentUser } = useAuth();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [historyOpen, setHistoryOpen] = useState(false);
   
   // Check if the chatbot exists
   useEffect(() => {
@@ -42,6 +59,18 @@ const ChatInterface: React.FC = () => {
       sendMessage(inputValue);
       setInputValue('');
     }
+  };
+  
+  const handleNewChat = () => {
+    if (currentChatbot) {
+      createNewChat(currentChatbot.id);
+      setHistoryOpen(false);
+    }
+  };
+  
+  const handleSelectChat = (chatId: string) => {
+    selectChat(chatId);
+    setHistoryOpen(false);
   };
   
   // Render message content based on type
@@ -162,10 +191,99 @@ const ChatInterface: React.FC = () => {
       </AppLayout>
     );
   }
+
+  // Get chat history for current chatbot
+  const currentChatbotHistory = chatHistory[currentChatbot.id] || [];
   
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
+        {/* Chat header with history dropdown */}
+        <div className="border-b border-border p-2 flex items-center justify-between">
+          <div className="flex items-center">
+            <Avatar className="h-8 w-8 mr-2">
+              <AvatarImage src={currentChatbot.avatar} />
+              <AvatarFallback className={currentChatbot.color}>
+                {currentChatbot.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <h2 className="font-medium">{currentChat.title || "New Chat"}</h2>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNewChat}
+              title="New Chat"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            
+            <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Chat History"
+                >
+                  <History className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-2 max-h-96 overflow-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium">Chat History</h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleNewChat} 
+                      className="h-8 px-2 text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> New Chat
+                    </Button>
+                  </div>
+                  
+                  {currentChatbotHistory.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-2">
+                      No chat history found
+                    </div>
+                  ) : (
+                    currentChatbotHistory
+                      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+                      .map((chat) => (
+                        <Button
+                          key={chat.id}
+                          variant={currentChat.id === chat.id ? "secondary" : "ghost"}
+                          className="w-full justify-start h-auto py-2 px-3"
+                          onClick={() => handleSelectChat(chat.id)}
+                        >
+                          <div className="w-full text-left truncate">
+                            <div className="font-medium text-sm truncate">
+                              {chat.title || "New Chat"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(chat.updatedAt, 'MMM d, h:mm a')}
+                            </div>
+                          </div>
+                        </Button>
+                      ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={clearChat}
+              title="Clear Chat"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
         {/* Messages */}
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
           <div className="max-w-3xl mx-auto space-y-4">
