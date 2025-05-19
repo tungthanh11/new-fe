@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -11,6 +11,7 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { currentUser, loading } = useAuth();
+  const navigate = useNavigate();
 
   // Show loading state
   if (loading) {
@@ -23,7 +24,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   // Redirect to login if not authenticated
   if (!currentUser) {
-    return <Navigate to="/login" />;
+    // Use useEffect to navigate programmatically
+    React.useEffect(() => {
+      navigate('/login');
+    }, [navigate]);
+    
+    // Return loading indicator while redirecting
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (

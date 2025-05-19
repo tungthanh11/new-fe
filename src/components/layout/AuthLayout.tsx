@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
@@ -10,6 +10,7 @@ interface AuthLayoutProps {
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   const { currentUser, loading } = useAuth();
+  const navigate = useNavigate();
 
   // Show loading state
   if (loading) {
@@ -22,7 +23,17 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
 
   // Redirect to home if already authenticated
   if (currentUser) {
-    return <Navigate to="/" />;
+    // Use useEffect to navigate programmatically
+    useEffect(() => {
+      navigate('/');
+    }, [navigate]);
+    
+    // Return loading indicator while redirecting
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (

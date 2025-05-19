@@ -1,5 +1,4 @@
-
-import { Chat, Chatbot, ChatbotCategory, Message, User, UserPreferences } from "../types";
+import { Chatbot, ChatbotCategory, Message, MessageType } from '@/types';
 
 // Mock categories with colors
 export const CATEGORIES: Record<ChatbotCategory, { color: string, description: string }> = {

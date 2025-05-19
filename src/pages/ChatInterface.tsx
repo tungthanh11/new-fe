@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import { useChat } from '@/contexts/ChatContext';
 import { mockChatbots } from '@/data/mockData';
@@ -19,6 +19,7 @@ const ChatInterface: React.FC = () => {
   const { currentUser } = useAuth();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   // Check if the chatbot exists
   useEffect(() => {
@@ -60,8 +61,11 @@ const ChatInterface: React.FC = () => {
         return (
           <ReactMarkdown
             components={{
-              code({ node, inline, className, children, ...props }) {
-                if (inline) {
+              code({ node, className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || '');
+                const isInline = !match;
+                
+                if (isInline) {
                   return (
                     <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5" {...props}>
                       {children}
@@ -69,8 +73,8 @@ const ChatInterface: React.FC = () => {
                   );
                 }
                 return (
-                  <pre className="chat-code-block" {...props}>
-                    <code>{children}</code>
+                  <pre className="chat-code-block">
+                    <code {...props}>{children}</code>
                   </pre>
                 );
               },
@@ -91,8 +95,11 @@ const ChatInterface: React.FC = () => {
               li: ({ node, ...props }) => <li className="my-1" {...props} />,
               p: ({ node, ...props }) => <p className="my-2" {...props} />,
               a: ({ node, ...props }) => <a className="text-primary underline" {...props} />,
-              code: ({ node, inline, className, children, ...props }) => {
-                if (inline) {
+              code({ node, className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || '');
+                const isInline = !match;
+                
+                if (isInline) {
                   return (
                     <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5" {...props}>
                       {children}
@@ -100,8 +107,8 @@ const ChatInterface: React.FC = () => {
                   );
                 }
                 return (
-                  <pre className="chat-code-block" {...props}>
-                    <code>{children}</code>
+                  <pre className="chat-code-block">
+                    <code {...props}>{children}</code>
                   </pre>
                 );
               },
@@ -119,7 +126,18 @@ const ChatInterface: React.FC = () => {
   if (id && !currentChatbot) {
     const chatbotExists = mockChatbots.some(bot => bot.id === id);
     if (!chatbotExists) {
-      return <Navigate to="/chatbots" />;
+      // Use useEffect to navigate programmatically
+      useEffect(() => {
+        navigate('/chatbots');
+      }, [navigate]);
+      
+      return (
+        <AppLayout>
+          <div className="h-full flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        </AppLayout>
+      );
     }
     return (
       <AppLayout>
