@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
@@ -12,6 +12,14 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
+  
+  // Always call useEffect (no conditional usage)
+  useEffect(() => {
+    // Only redirect if not loading and no user
+    if (!loading && !currentUser) {
+      navigate('/login');
+    }
+  }, [currentUser, loading, navigate]);
 
   // Show loading state
   if (loading) {
@@ -22,14 +30,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     );
   }
 
-  // Redirect to login if not authenticated
+  // Don't render the layout at all if no user and not loading
+  // The useEffect will handle redirection instead
   if (!currentUser) {
-    // Use useEffect to navigate programmatically
-    React.useEffect(() => {
-      navigate('/login');
-    }, [navigate]);
-    
-    // Return loading indicator while redirecting
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>

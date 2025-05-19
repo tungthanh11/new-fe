@@ -11,6 +11,14 @@ interface AuthLayoutProps {
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
+  
+  // Always call useEffect (no conditional usage)
+  useEffect(() => {
+    // Only redirect if not loading and user exists
+    if (!loading && currentUser) {
+      navigate('/');
+    }
+  }, [currentUser, loading, navigate]);
 
   // Show loading state
   if (loading) {
@@ -21,14 +29,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
     );
   }
 
-  // Redirect to home if already authenticated
+  // Don't render the layout if user exists and not loading
+  // The useEffect will handle redirection
   if (currentUser) {
-    // Use useEffect to navigate programmatically
-    useEffect(() => {
-      navigate('/');
-    }, [navigate]);
-    
-    // Return loading indicator while redirecting
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
