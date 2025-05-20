@@ -1,17 +1,19 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
+import { useChat } from '@/contexts/ChatContext';
 import { CATEGORIES, mockChatbots } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { ChevronRight, Grid2X2, Home, LogOut, MessageSquare, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatbotCategory } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ChatHistorySidebar } from './ChatHistorySidebar';
 
 export const Sidebar: React.FC = () => {
   const { currentUser, logout } = useAuth();
+  const { currentChatbot, currentChat, chatHistory } = useChat();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ChatbotCategory | 'all'>('all');
@@ -23,7 +25,99 @@ export const Sidebar: React.FC = () => {
   const filteredChatbots = activeCategory === 'all' 
     ? mockChatbots
     : mockChatbots.filter(bot => bot.category === activeCategory);
+    
+  // Parse chatId from URL if present
+  const getChatIdFromUrl = () => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get('chatId') || undefined;
+  };
 
+  // Check if we're on a specific chatbot page
+  const chatbotId = location.pathname.startsWith('/chat/') 
+    ? location.pathname.split('/')[2]
+    : null;
+    
+  // Use the current chat history for the selected chatbot
+  const currentBotHistory = chatbotId 
+    ? (chatHistory[chatbotId] || [])
+    : [];
+    
+  // Get the selected chatbot
+  const selectedChatbot = chatbotId
+    ? mockChatbots.find(bot => bot.id === chatbotId) || null
+    : null;
+    
+  // Get current chat ID
+  const currentChatId = currentChat?.id || getChatIdFromUrl();
+
+  // Determine which sidebar view to show
+  const showChatHistory = Boolean(selectedChatbot && location.pathname.startsWith('/chat/'));
+
+  // If we're showing chat history, render the ChatHistorySidebar
+  if (showChatHistory && selectedChatbot) {
+    return (
+      <div 
+        className={cn(
+          "flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
+          isCollapsed ? "w-16" : "w-64"
+        )}
+      >
+        <ChatHistorySidebar 
+          chatbot={selectedChatbot}
+          chatHistory={currentBotHistory}
+          currentChatId={currentChatId}
+          isCollapsed={isCollapsed}
+        />
+        
+        {/* User section - keep this the same */}
+        <div className="h-16 flex items-center px-3 border-t border-sidebar-border">
+          {!isCollapsed ? (
+            <>
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={currentUser?.avatar} />
+                <AvatarFallback>{currentUser?.name?.charAt(0) || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="ml-2 flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{currentUser?.name}</p>
+                <p className="text-xs text-sidebar-foreground/70 truncate">{currentUser?.email}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  asChild
+                  className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8"
+                >
+                  <Link to="/settings">
+                    <Settings className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => logout()}
+                  className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => logout()}
+              className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8 mx-auto"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise, render the default sidebar
   return (
     <div 
       className={cn(
@@ -167,6 +261,7 @@ export const Sidebar: React.FC = () => {
       
       {/* User section */}
       <div className="h-16 flex items-center px-3 border-t border-sidebar-border">
+        {/* // ... keep existing code (user profile section) */}
         {!isCollapsed ? (
           <>
             <Avatar className="h-8 w-8">

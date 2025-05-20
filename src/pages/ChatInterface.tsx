@@ -1,6 +1,5 @@
-
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import { useChat } from '@/contexts/ChatContext';
 import { mockChatbots } from '@/data/mockData';
@@ -10,24 +9,19 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Message } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
-import { History, Plus, Send, Trash2 } from 'lucide-react';
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger 
-} from '@/components/ui/popover';
+import { Plus, Send, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ChatInterface: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { 
     currentChatbot, 
     currentChat, 
     chatHistory,
     selectChatbot, 
     createNewChat,
-    sendMessage, 
-    selectChat,
+    sendMessage,
     clearChat,
     isTyping 
   } = useChat();
@@ -36,17 +30,23 @@ const ChatInterface: React.FC = () => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const [historyOpen, setHistoryOpen] = useState(false);
   
-  // Check if the chatbot exists
+  // Parse chatId from URL if present
+  const getChatIdFromUrl = () => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get('chatId') || undefined;
+  };
+  
+  // Check if the chatbot exists and select it
   useEffect(() => {
     if (id) {
       const chatbotExists = mockChatbots.some(bot => bot.id === id);
       if (chatbotExists) {
-        selectChatbot(id);
+        const chatId = getChatIdFromUrl();
+        selectChatbot(id, chatId);
       }
     }
-  }, [id, selectChatbot]);
+  }, [id, location.search, selectChatbot]);
   
   // Scroll to bottom when messages change or typing state changes
   useEffect(() => {
@@ -64,13 +64,7 @@ const ChatInterface: React.FC = () => {
   const handleNewChat = () => {
     if (currentChatbot) {
       createNewChat(currentChatbot.id);
-      setHistoryOpen(false);
     }
-  };
-  
-  const handleSelectChat = (chatId: string) => {
-    selectChat(chatId);
-    setHistoryOpen(false);
   };
   
   // Render message content based on type
@@ -155,7 +149,6 @@ const ChatInterface: React.FC = () => {
   if (id && !currentChatbot) {
     const chatbotExists = mockChatbots.some(bot => bot.id === id);
     if (!chatbotExists) {
-      // Use useEffect to navigate programmatically
       useEffect(() => {
         navigate('/chatbots');
       }, [navigate]);
@@ -192,13 +185,10 @@ const ChatInterface: React.FC = () => {
     );
   }
 
-  // Get chat history for current chatbot
-  const currentChatbotHistory = chatHistory[currentChatbot.id] || [];
-  
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
-        {/* Chat header with history dropdown */}
+        {/* Chat header with actions */}
         <div className="border-b border-border p-2 flex items-center justify-between">
           <div className="flex items-center">
             <Avatar className="h-8 w-8 mr-2">
@@ -219,59 +209,6 @@ const ChatInterface: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
             </Button>
-            
-            <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title="Chat History"
-                >
-                  <History className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-2 max-h-96 overflow-auto">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium">Chat History</h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleNewChat} 
-                      className="h-8 px-2 text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" /> New Chat
-                    </Button>
-                  </div>
-                  
-                  {currentChatbotHistory.length === 0 ? (
-                    <div className="text-sm text-muted-foreground py-2">
-                      No chat history found
-                    </div>
-                  ) : (
-                    currentChatbotHistory
-                      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-                      .map((chat) => (
-                        <Button
-                          key={chat.id}
-                          variant={currentChat.id === chat.id ? "secondary" : "ghost"}
-                          className="w-full justify-start h-auto py-2 px-3"
-                          onClick={() => handleSelectChat(chat.id)}
-                        >
-                          <div className="w-full text-left truncate">
-                            <div className="font-medium text-sm truncate">
-                              {chat.title || "New Chat"}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {format(chat.updatedAt, 'MMM d, h:mm a')}
-                            </div>
-                          </div>
-                        </Button>
-                      ))
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
             
             <Button
               variant="ghost"
