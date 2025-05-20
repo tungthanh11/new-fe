@@ -214,7 +214,7 @@ const ChatInterface: React.FC = () => {
               variant="ghost"
               size="icon"
               onClick={clearChat}
-              title="Clear Chat"
+              title="Delete this conversation"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

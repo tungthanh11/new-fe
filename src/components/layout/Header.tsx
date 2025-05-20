@@ -4,7 +4,7 @@ import { useChat } from '@/contexts/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '../ui/ThemeToggle';
-import { Trash } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { currentChatbot, clearChat } = useChat();
@@ -38,8 +38,8 @@ export const Header: React.FC = () => {
             onClick={clearChat}
             className="text-muted-foreground"
           >
-            <Trash className="h-4 w-4 mr-1" />
-            Clear Chat
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete Conversation
           </Button>
         )}
         <ThemeToggle />

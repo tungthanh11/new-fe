@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Chat, Message, Chatbot } from '../types';
 import { createMockChat, mockChatbots, generateChatbotResponse } from '../data/mockData';
@@ -299,34 +298,44 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   };
 
+  // Modified clearChat function to delete the entire conversation
   const clearChat = () => {
     if (!currentChatbot || !currentChat) return;
     
-    // Create new empty chat
-    const newChat = createMockChat(currentChatbot.id);
+    // Check if there will be other chats left after deletion
+    const botChats = [...(chatHistory[currentChatbot.id] || [])];
+    const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
     
-    // Update current chat
-    setCurrentChat(newChat);
+    // Remove the current chat from history
+    if (chatIndex !== -1) {
+      botChats.splice(chatIndex, 1);
+    }
     
-    // Update chat in history
-    setChatHistory(prev => {
-      const botChats = [...(prev[currentChatbot.id] || [])];
-      const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
+    // Update chat history without the deleted chat
+    setChatHistory(prev => ({
+      ...prev,
+      [currentChatbot.id]: botChats
+    }));
+    
+    // Choose next chat or create a new one if no chats left
+    if (botChats.length > 0) {
+      // Select the most recent chat
+      const nextChat = botChats[botChats.length - 1];
+      setCurrentChat(nextChat);
       
-      if (chatIndex !== -1) {
-        botChats[chatIndex] = newChat;
-      }
+      toast({
+        title: "Chat deleted",
+        description: "The conversation has been deleted",
+      });
+    } else {
+      // Create a new chat if no chats are left
+      createNewChat(currentChatbot.id);
       
-      return {
-        ...prev,
-        [currentChatbot.id]: botChats
-      };
-    });
-    
-    toast({
-      title: "Chat cleared",
-      description: "Your chat history has been cleared",
-    });
+      toast({
+        title: "Chat deleted",
+        description: "Created a new chat as the conversation was deleted",
+      });
+    }
   };
 
   const value = {
