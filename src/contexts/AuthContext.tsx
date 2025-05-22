@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { mockUsers } from '../data/mockData';
 import { useToast } from '@/components/ui/use-toast';
+import { auth } from '../firebase';
+import { User as FirebaseUser, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -35,47 +37,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Simulate loading the user from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('chatbot_user');
-    if (storedUser) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Failed to parse stored user data', e);
-        localStorage.removeItem('chatbot_user');
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        setCurrentUser({
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || '',
+          email: firebaseUser.email || '',
+          avatar: firebaseUser.photoURL || '',
+        });
+      } else {
+        setCurrentUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Mock authentication functions
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
-    
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check against mock data
-      const user = mockUsers.find(u => u.email === email);
-      
-      if (user && password === 'password') { // Mock password check
-        setCurrentUser(user);
-        localStorage.setItem('chatbot_user', JSON.stringify(user));
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${user.name}!`,
-        });
-      } else {
-        throw new Error('Invalid email or password');
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({
+        title: "Đăng nhập thành công",
+        description: "Chào mừng bạn trở lại!",
+      });
     } catch (err: any) {
       setError(err.message);
       toast({
         variant: "destructive",
-        title: "Login failed",
+        title: "Đăng nhập thất bại",
         description: err.message,
       });
     } finally {
@@ -86,38 +78,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (email: string, password: string, name: string) => {
     setLoading(true);
     setError(null);
-    
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check if user already exists in mock data
-      if (mockUsers.some(u => u.email === email)) {
-        throw new Error('Email already in use');
-      }
-      
-      // Create new mock user (in a real app, this would be an API call to Firebase)
-      const newUser: User = {
-        id: `user-${Date.now()}`,
-        name,
-        email,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-      };
-      
-      // In a real app, mockUsers would be updated via API
-      // For demo, we'll just set the current user
-      setCurrentUser(newUser);
-      localStorage.setItem('chatbot_user', JSON.stringify(newUser));
-      
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      await updateProfile(firebaseUser, { displayName: name });
       toast({
-        title: "Account created",
-        description: `Welcome, ${name}!`,
+        title: "Tài khoản đã được tạo",
+        description: `Chào mừng, ${name}!`,
       });
     } catch (err: any) {
       setError(err.message);
       toast({
         variant: "destructive",
-        title: "Signup failed",
+        title: "Đăng ký thất bại",
         description: err.message,
       });
     } finally {
@@ -127,21 +100,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setCurrentUser(null);
-      localStorage.removeItem('chatbot_user');
-      
+      await signOut(auth);
       toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
+        title: "Đã đăng xuất",
+        description: "Bạn đã đăng xuất thành công",
       });
     } catch (err: any) {
       setError(err.message);
       toast({
         variant: "destructive",
-        title: "Logout failed",
+        title: "Đăng xuất thất bại",
         description: err.message,
       });
     }
@@ -150,31 +118,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginWithGoogle = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock Google auth response
-      const user: User = {
-        id: 'google-user-1',
-        name: 'Google User',
-        email: 'google@example.com',
-        avatar: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
-      };
-      
-      setCurrentUser(user);
-      localStorage.setItem('chatbot_user', JSON.stringify(user));
-      
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
       toast({
-        title: "Google login successful",
-        description: `Welcome, ${user.name}!`,
+        title: "Đăng nhập Google thành công",
+        description: "Chào mừng bạn!",
       });
     } catch (err: any) {
       setError(err.message);
       toast({
         variant: "destructive",
-        title: "Google login failed",
+        title: "Đăng nhập Google thất bại",
         description: err.message,
       });
     } finally {
@@ -185,31 +140,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loginWithGithub = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock GitHub auth response
-      const user: User = {
-        id: 'github-user-1',
-        name: 'GitHub User',
-        email: 'github@example.com',
-        avatar: 'https://cdn-icons-png.flaticon.com/512/25/25231.png',
-      };
-      
-      setCurrentUser(user);
-      localStorage.setItem('chatbot_user', JSON.stringify(user));
-      
+      const provider = new GithubAuthProvider();
+      await signInWithPopup(auth, provider);
       toast({
-        title: "GitHub login successful",
-        description: `Welcome, ${user.name}!`,
+        title: "Đăng nhập GitHub thành công",
+        description: "Chào mừng bạn!",
       });
     } catch (err: any) {
       setError(err.message);
       toast({
         variant: "destructive",
-        title: "GitHub login failed",
+        title: "Đăng nhập GitHub thất bại",
         description: err.message,
       });
     } finally {

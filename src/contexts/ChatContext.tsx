@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Chat, Message, Chatbot } from '../types';
 import { createMockChat, mockChatbots, generateChatbotResponse } from '../data/mockData';
