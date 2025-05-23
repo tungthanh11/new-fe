@@ -1,6 +1,7 @@
 // src/firebase.ts
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // TODO: Thay thế các giá trị này bằng config từ Firebase Console
@@ -19,3 +20,4 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 // Export auth instance để dùng ở các nơi khác
 export const auth = getAuth(app);
+export const db = getFirestore(app);

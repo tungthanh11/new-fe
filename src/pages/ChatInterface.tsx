@@ -145,14 +145,19 @@ const ChatInterface: React.FC = () => {
     }
   };
   
+  // Check if chatbot exists for redirect
+  const chatbotExists = id ? mockChatbots.some(bot => bot.id === id) : true;
+
+  // Redirect if chatbot does not exist
+  useEffect(() => {
+    if (id && !chatbotExists) {
+      navigate('/chatbots');
+    }
+  }, [id, chatbotExists, navigate]);
+
   // Handle invalid chatbot ID
   if (id && !currentChatbot) {
-    const chatbotExists = mockChatbots.some(bot => bot.id === id);
     if (!chatbotExists) {
-      useEffect(() => {
-        navigate('/chatbots');
-      }, [navigate]);
-      
       return (
         <AppLayout>
           <div className="h-full flex items-center justify-center">

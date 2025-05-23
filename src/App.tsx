@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
+import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Home from "./pages/Home";
@@ -35,6 +36,7 @@ const App = () => (
                 <Route path="/" element={<Home />} />
                 <Route path="/chatbots" element={<ChatbotList />} />
                 <Route path="/chat/:id" element={<ChatInterface />} />
+                <Route path="/settings" element={<Settings />} />
                 
                 {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
