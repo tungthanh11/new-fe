@@ -172,7 +172,7 @@ export const Sidebar: React.FC = () => {
               {!isCollapsed && <span>All Chatbots</span>}
             </Button>
           </Link>
-          <Link to="/chats">
+          {/*<Link to="/chats">
             <Button 
               variant="ghost" 
               className={cn(
@@ -184,7 +184,7 @@ export const Sidebar: React.FC = () => {
               <MessageSquare className="h-5 w-5 mr-2" />
               {!isCollapsed && <span>My Chats</span>}
             </Button>
-          </Link>
+          </Link>*/}
         </nav>
         
         {/* Categories */}
