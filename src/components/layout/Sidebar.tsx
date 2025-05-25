@@ -79,7 +79,7 @@ export const Sidebar: React.FC = () => {
       <div className="h-16 flex items-center px-3 border-b border-sidebar-border">
         {!isCollapsed && (
           <div className="flex-1 flex items-center">
-            <span className="font-bold text-lg">AI Chat Assistant</span>
+            <span className="font-bold text-lg">Cloudy Meowy Chatbot</span>
           </div>
         )}
         <Button 
