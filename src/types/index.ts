@@ -7,43 +7,73 @@ export type User = {
 };
 
 export type ChatbotCategory = 
-  | "Mathematics" 
-  | "Law" 
-  | "Medical" 
-  | "Programming" 
-  | "Business" 
-  | "Science";
+  | "mathematics" 
+  | "law" 
+  | "medical" 
+  | "programming" 
+  | "business" 
+  | "science";
 
-export type Chatbot = {
+export interface Chatbot {
   id: string;
   name: string;
   description: string;
   category: ChatbotCategory;
   avatar: string;
   color: string;
-  usageCount?: number;
-};
+  usageCount: number;
+}
 
 export type MessageType = "text" | "code" | "image" | "markdown";
 
-export type Message = {
+export interface Message {
   id: string;
   content: string;
-  type: MessageType;
-  sender: "user" | "bot";
+  sender: 'user' | 'bot';
   timestamp: Date;
-  chatbotId: string;
+  type: 'text' | 'code' | 'markdown';
   isLoading?: boolean;
-};
+}
 
-export type Chat = {
+export interface Chat {
   id: string;
-  chatbotId: string;
+  title: string;
   messages: Message[];
-  createdAt: Date;
   updatedAt: Date;
-  title?: string; // Optional title for the chat
-};
+  createdAt: Date;
+  chatbotId: string;
+  chatId: string | null; // Real chat ID from server, null for new chats
+}
+
+// API Response types
+export interface CreateChatResponse {
+  message: string;
+  chatId: string;
+}
+
+export interface GetChatResponse {
+  message: string;
+  chat: {
+    chatId: string;
+    user_id: string;
+    type: string;
+    title: string;
+    created_at: string;
+    messages: Array<{
+      sender: 'user' | 'bot';
+      message: string;
+      created_at: string;
+    }>;
+  };
+}
+
+export interface SendMessageResponse {
+  response: string;
+}
+
+export interface ChatHistoryResponse {
+  chats: Chat[];
+}
 
 export type UserPreferences = {
   userId: string;

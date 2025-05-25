@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
 import { Chat, Message, Chatbot } from '../types';
-import { createMockChat, mockChatbots, generateChatbotResponse } from '../data/mockData';
-import { useAuth } from './AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { api } from '../contexts/AuthContext';
 
 interface ChatContextType {
   currentChatbot: Chatbot | null;
   currentChat: Chat | null;
   chatHistory: { [chatbotId: string]: Chat[] };
   isTyping: boolean;
-  selectChatbot: (chatbotId: string, chatId?: string) => void;
-  createNewChat: (chatbotId: string) => void;
-  sendMessage: (content: string) => void;
-  clearChat: () => void;
-  selectChat: (chatId: string) => void;
+  // Updated function signatures
+  selectChatbot: (chatbot: Chatbot) => void;
+  sendMessage: (message: string) => Promise<void>;
+  createNewChat: (chatbotId?: string) => void;
+  clearCurrentChat: () => void;
+  getChatHistory: (chatbotType: string) => Promise<Chat[]>;
+  loadChatById: (chatId: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -36,308 +36,212 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
   const [chatHistory, setChatHistory] = useState<{ [chatbotId: string]: Chat[] }>({});
   const [isTyping, setIsTyping] = useState<boolean>(false);
-  
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
 
-  // Load chat history from localStorage
-  useEffect(() => {
-    if (currentUser) {
-      const storedChatHistory = localStorage.getItem(`chatHistory_${currentUser.id}`);
-      if (storedChatHistory) {
-        try {
-          const parsedChatHistory = JSON.parse(storedChatHistory);
-          
-          // Convert string timestamps back to Date objects
-          Object.keys(parsedChatHistory).forEach((chatbotId) => {
-            parsedChatHistory[chatbotId].forEach((chat: any) => {
-              chat.createdAt = new Date(chat.createdAt);
-              chat.updatedAt = new Date(chat.updatedAt);
-              chat.messages.forEach((msg: any) => {
-                msg.timestamp = new Date(msg.timestamp);
-              });
-            });
-          });
-          
-          setChatHistory(parsedChatHistory);
-        } catch (e) {
-          console.error('Failed to parse stored chat history', e);
-        }
+  // Helper function to convert category to lowercase
+  const getChatbotType = useCallback((category: string): string => {
+    return category.toLowerCase();
+  }, []);
+
+  // Helper function to transform API chat data to our Chat type
+  const transformApiChatToChat = useCallback((apiChat: any, chatbotId: string): Chat => {
+    return {
+      id: apiChat.chatId || apiChat.id,
+      chatId: apiChat.chatId,
+      title: apiChat.title || 'New Chat',
+      messages: (apiChat.messages || []).map((msg: any) => ({
+        id: msg.id || `msg-${Date.now()}-${Math.random()}`,
+        content: msg.message || msg.content,
+        sender: msg.sender,
+        timestamp: new Date(msg.created_at || msg.timestamp || Date.now()),
+        type: msg.type || 'text'
+      })),
+      createdAt: new Date(apiChat.created_at || Date.now()),
+      updatedAt: new Date(apiChat.updated_at || apiChat.created_at || Date.now()),
+      chatbotId: chatbotId
+    };
+  }, []);
+
+  // Select a chatbot and initialize a new chat
+  const selectChatbot = useCallback((chatbot: Chatbot) => {
+    setCurrentChatbot(chatbot);
+    // Create a new empty chat when selecting a chatbot
+    const newChat: Chat = {
+      id: `temp-${Date.now()}`,
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chatbotId: chatbot.id,
+      chatId: null
+    };
+    setCurrentChat(newChat);
+  }, []);
+
+  // Load existing chat by ID
+  const loadChatById = useCallback(async (chatId: string) => {
+    try {
+      const response = await api.get(`/api/chat/${chatId}`);
+      const { chat } = response.data;
+      
+      if (chat && currentChatbot) {
+        const transformedChat = transformApiChatToChat(chat, currentChatbot.id);
+        setCurrentChat(transformedChat);
+      }
+    } catch (error) {
+      console.error('Error loading chat:', error);
+      // If chat doesn't exist, create new one
+      if (currentChatbot) {
+        createNewChat(currentChatbot.id);
       }
     }
-  }, [currentUser]);
+  }, [currentChatbot, transformApiChatToChat]);
 
-  // Save chat history to localStorage whenever it changes
-  useEffect(() => {
-    if (currentUser && Object.keys(chatHistory).length > 0) {
-      localStorage.setItem(`chatHistory_${currentUser.id}`, JSON.stringify(chatHistory));
-    }
-  }, [chatHistory, currentUser]);
+  // Send message function
+  const sendMessage = useCallback(async (message: string) => {
+    if (!currentChatbot || !currentChat || isTyping) return;
 
-  // Generate title based on first few messages
-  const generateChatTitle = (messages: Message[]): string => {
-    if (messages.length === 0) return "New Chat";
-    
-    // Find first user message
-    const userMessage = messages.find(msg => msg.sender === 'user');
-    if (userMessage) {
-      // Truncate to first ~25 characters or first line
-      const title = userMessage.content.split('\n')[0].substring(0, 25);
-      return title.length < userMessage.content.length ? `${title}...` : title;
-    }
-    
-    return "New Chat";
-  };
+    try {
+      setIsTyping(true);
+      
+      // Add user message to chat immediately
+      const userMessage: Message = {
+        id: `msg-${Date.now()}`,
+        content: message,
+        sender: 'user',
+        timestamp: new Date(),
+        type: 'text'
+      };
 
-  const selectChatbot = (chatbotId: string, chatId?: string) => {
-    const chatbot = mockChatbots.find(bot => bot.id === chatbotId);
-    
-    if (!chatbot) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Chatbot not found",
-      });
-      return;
-    }
-    
-    setCurrentChatbot(chatbot);
-    
-    // Check if we have chats for this chatbot
-    const botChats = chatHistory[chatbotId] || [];
-    
-    if (botChats.length > 0) {
-      if (chatId) {
-        // Find specific chat if chatId is provided
-        const selectedChat = botChats.find(chat => chat.id === chatId);
-        if (selectedChat) {
-          setCurrentChat(selectedChat);
-        } else {
-          // If chatId not found, use the most recent chat
-          setCurrentChat(botChats[botChats.length - 1]);
+      const updatedMessages = [...currentChat.messages, userMessage];
+      setCurrentChat(prev => prev ? { 
+        ...prev, 
+        messages: updatedMessages,
+        updatedAt: new Date()
+      } : null);
+
+      // Check if this is the first message (no chatId yet)
+      if (!currentChat.chatId) {
+        // First message - create new chat
+        const chatbotType = getChatbotType(currentChatbot.category);
+        const response = await api.post('/api/chat/new', {
+          type: chatbotType,
+          query: message
+        });
+
+        const { chatId } = response.data;
+        
+        // Update current chat with real chatId
+        setCurrentChat(prev => prev ? { ...prev, chatId, id: chatId } : null);
+
+        // Get the initial response from the chat
+        const chatResponse = await api.get(`/api/chat/${chatId}`);
+        const { chat } = chatResponse.data;
+
+        // Update chat with title and bot response
+        const botMessages = chat.messages.filter((msg: any) => msg.sender === 'bot');
+        if (botMessages.length > 0) {
+          const botMessage: Message = {
+            id: `msg-bot-${Date.now()}`,
+            content: botMessages[0].message,
+            sender: 'bot',
+            timestamp: new Date(botMessages[0].created_at),
+            type: 'text'
+          };
+
+          setCurrentChat(prev => prev ? {
+            ...prev,
+            title: chat.title.trim(),
+            messages: [...updatedMessages, botMessage],
+            updatedAt: new Date()
+          } : null);
         }
       } else {
-        // If no chatId is provided, use the most recent chat
-        setCurrentChat(botChats[botChats.length - 1]);
-      }
-    } else {
-      // Create a new chat if none exists
-      createNewChat(chatbotId);
-    }
-  };
+        // Subsequent messages - send to existing chat
+        const response = await api.post(`/api/chat/${currentChat.chatId}`, {
+          query: message
+        });
 
-  const createNewChat = (chatbotId: string) => {
-    const chatbot = mockChatbots.find(bot => bot.id === chatbotId);
-    
-    if (!chatbot) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Chatbot not found",
-      });
-      return;
-    }
-    
-    const newChat = createMockChat(chatbotId);
-    
-    // Add new chat to history
-    setChatHistory(prev => {
-      const botChats = prev[chatbotId] || [];
-      return {
-        ...prev,
-        [chatbotId]: [...botChats, newChat]
-      };
-    });
-    
-    // Set as current chat
-    setCurrentChat(newChat);
-    setCurrentChatbot(chatbot);
-    
-    toast({
-      title: "New chat created",
-      description: `Started a new conversation with ${chatbot.name}`,
-    });
-  };
-
-  const selectChat = (chatId: string) => {
-    if (!currentChatbot) return;
-    
-    const botChats = chatHistory[currentChatbot.id] || [];
-    const selectedChat = botChats.find(chat => chat.id === chatId);
-    
-    if (selectedChat) {
-      setCurrentChat(selectedChat);
-    }
-  };
-
-  const sendMessage = async (content: string) => {
-    if (!currentChatbot || !currentChat) {
-      return;
-    }
-    
-    // Create user message
-    const userMessage: Message = {
-      id: `msg-user-${Date.now()}`,
-      content,
-      type: "text",
-      sender: "user",
-      timestamp: new Date(),
-      chatbotId: currentChatbot.id,
-    };
-    
-    // Create temporary bot message for typing indicator
-    const tempBotMessage: Message = {
-      id: `msg-bot-temp-${Date.now()}`,
-      content: "",
-      type: "text",
-      sender: "bot",
-      timestamp: new Date(),
-      chatbotId: currentChatbot.id,
-      isLoading: true,
-    };
-    
-    // Update chat with user message and temp bot message
-    const updatedChat: Chat = {
-      ...currentChat,
-      messages: [...currentChat.messages, userMessage, tempBotMessage],
-      updatedAt: new Date()
-    };
-    
-    // Update current chat
-    setCurrentChat(updatedChat);
-    
-    // Update chat in history
-    setChatHistory(prev => {
-      const botChats = [...(prev[currentChatbot.id] || [])];
-      const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
-      
-      if (chatIndex !== -1) {
-        botChats[chatIndex] = updatedChat;
-      }
-      
-      return {
-        ...prev,
-        [currentChatbot.id]: botChats
-      };
-    });
-    
-    setIsTyping(true);
-    
-    try {
-      // Generate chatbot response
-      const botResponse = await generateChatbotResponse(currentChatbot.id, content);
-      
-      // Remove temp message and add the real response
-      const finalMessages = updatedChat.messages
-        .filter(msg => msg.id !== tempBotMessage.id)
-        .concat(botResponse);
-      
-      // Update title if this is first user message
-      let chatTitle = updatedChat.title;
-      if (!chatTitle && userMessage === updatedChat.messages[1]) {
-        chatTitle = generateChatTitle([userMessage]);
-      }
-      
-      const finalChat: Chat = {
-        ...updatedChat,
-        messages: finalMessages,
-        updatedAt: new Date(),
-        title: chatTitle
-      };
-      
-      // Update current chat
-      setCurrentChat(finalChat);
-      
-      // Update chat in history
-      setChatHistory(prev => {
-        const botChats = [...(prev[currentChatbot.id] || [])];
-        const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
-        
-        if (chatIndex !== -1) {
-          botChats[chatIndex] = finalChat;
-        }
-        
-        return {
-          ...prev,
-          [currentChatbot.id]: botChats
+        // Add bot response to chat
+        const botMessage: Message = {
+          id: `msg-bot-${Date.now()}`,
+          content: response.data.response,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'text'
         };
-      });
+
+        setCurrentChat(prev => prev ? {
+          ...prev,
+          messages: [...updatedMessages, botMessage],
+          updatedAt: new Date()
+        } : null);
+      }
+
+      // Update chat history in state
+      if (currentChatbot && currentChat) {
+        setChatHistory(prev => ({
+          ...prev,
+          [currentChatbot.id]: prev[currentChatbot.id] || []
+        }));
+      }
     } catch (error) {
-      console.error("Error generating response:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to generate a response. Please try again.",
-      });
-      
-      // Remove the temporary message if there's an error
-      const errorMessages = updatedChat.messages.filter(msg => msg.id !== tempBotMessage.id);
-      const errorChat: Chat = {
-        ...updatedChat,
-        messages: errorMessages,
-        updatedAt: new Date()
-      };
-      
-      setCurrentChat(errorChat);
-      
-      // Update chat in history
-      setChatHistory(prev => {
-        const botChats = [...(prev[currentChatbot.id] || [])];
-        const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
-        
-        if (chatIndex !== -1) {
-          botChats[chatIndex] = errorChat;
-        }
-        
-        return {
-          ...prev,
-          [currentChatbot.id]: botChats
-        };
-      });
+      console.error('Error sending message:', error);
+      // Handle error - maybe show error message
     } finally {
       setIsTyping(false);
     }
-  };
+  }, [currentChatbot, currentChat, isTyping, getChatbotType]);
 
-  // Modified clearChat function to delete the entire conversation
-  const clearChat = () => {
-    if (!currentChatbot || !currentChat) return;
-    
-    // Check if there will be other chats left after deletion
-    const botChats = [...(chatHistory[currentChatbot.id] || [])];
-    const chatIndex = botChats.findIndex(chat => chat.id === currentChat.id);
-    
-    // Remove the current chat from history
-    if (chatIndex !== -1) {
-      botChats.splice(chatIndex, 1);
-    }
-    
-    // Update chat history without the deleted chat
-    setChatHistory(prev => ({
-      ...prev,
-      [currentChatbot.id]: botChats
-    }));
-    
-    // Choose next chat or create a new one if no chats left
-    if (botChats.length > 0) {
-      // Select the most recent chat
-      const nextChat = botChats[botChats.length - 1];
-      setCurrentChat(nextChat);
+  // Create new chat for current chatbot or specified chatbot
+  const createNewChat = useCallback((chatbotId?: string) => {
+    const targetChatbot = chatbotId ? 
+      // If chatbotId provided, we might need to find the chatbot (this assumes currentChatbot is already set)
+      currentChatbot 
+      : currentChatbot;
       
-      toast({
-        title: "Chat deleted",
-        description: "The conversation has been deleted",
-      });
-    } else {
-      // Create a new chat if no chats are left
-      createNewChat(currentChatbot.id);
+    if (!targetChatbot) return;
+
+    const newChat: Chat = {
+      id: `temp-${Date.now()}`,
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chatbotId: targetChatbot.id,
+      chatId: null
+    };
+    setCurrentChat(newChat);
+  }, [currentChatbot]);
+
+  // Clear current chat
+  const clearCurrentChat = useCallback(() => {
+    if (!currentChatbot) return;
+
+    const newChat: Chat = {
+      id: `temp-${Date.now()}`,
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chatbotId: currentChatbot.id,
+      chatId: null
+    };
+    setCurrentChat(newChat);
+  }, [currentChatbot]);
+
+  // Get chat history for a specific chatbot type
+  const getChatHistory = useCallback(async (chatbotType: string): Promise<Chat[]> => {
+    try {
+      const response = await api.get(`/api/chat/history?chatbot_type=${chatbotType.toLowerCase()}`);
+      const chats = response.data.chat_list || [];
       
-      toast({
-        title: "Chat deleted",
-        description: "Created a new chat as the conversation was deleted",
-      });
+      // Transform API response to Chat format
+      return chats.map((apiChat: any) => transformApiChatToChat(apiChat, currentChatbot?.id || ''));
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      return [];
     }
-  };
+  }, [transformApiChatToChat, currentChatbot]);
 
   const value = {
     currentChatbot,
@@ -345,10 +249,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     chatHistory,
     isTyping,
     selectChatbot,
-    createNewChat,
     sendMessage,
-    clearChat,
-    selectChat,
+    createNewChat,
+    clearCurrentChat,
+    getChatHistory,
+    loadChatById
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

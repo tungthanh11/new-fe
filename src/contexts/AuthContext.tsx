@@ -9,7 +9,7 @@ import axios from 'axios';
 
 // Create axios instance for API requests
 const api = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: 'http://localhost:3001',
 });
 
 // Function to set auth token in axios headers
