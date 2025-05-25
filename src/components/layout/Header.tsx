@@ -29,6 +29,7 @@ export const Header: React.FC = () => {
           <h1 className="font-medium">AI Chat Assistant</h1>
         )}
       </div>
+      <ThemeToggle />
     </header>
   );
 };
