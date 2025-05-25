@@ -48,7 +48,7 @@ export const Sidebar: React.FC = () => {
       : mockChatbots.filter(bot => bot.category === activeCategory);
   }, [activeCategory]);
 
-  // If we're on a chatbot page, show ChatHistorySidebar
+  // If we're on a chatbot page, show ONLY ChatHistorySidebar - không render gì khác
   if (isOnChatbotPage && selectedChatbot) {
     return (
       <div 
@@ -63,18 +63,11 @@ export const Sidebar: React.FC = () => {
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleSidebar}
         />
-        
-        {/* User section at bottom */}
-        <UserSection 
-          currentUser={currentUser} 
-          logout={logout} 
-          isCollapsed={isCollapsed} 
-        />
       </div>
     );
   }
 
-  // Default sidebar for home page
+  // Default sidebar for home page - chỉ render khi KHÔNG ở trang chatbot
   return (
     <div 
       className={cn(
@@ -149,7 +142,7 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
       
-      {/* User section */}
+      {/* User section - chỉ hiển thị trong default sidebar */}
       <UserSection 
         currentUser={currentUser} 
         logout={logout} 

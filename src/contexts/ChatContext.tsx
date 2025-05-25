@@ -8,13 +8,15 @@ interface ChatContextType {
   currentChat: Chat | null;
   chatHistory: { [chatbotId: string]: Chat[] };
   isTyping: boolean;
+  isLoadingChat: boolean; // New loading state for chat loading
   // Updated function signatures
   selectChatbot: (chatbot: Chatbot) => void;
   sendMessage: (message: string) => Promise<void>;
   createNewChat: (chatbotId?: string) => void;
   clearCurrentChat: () => void;
   getChatHistory: (chatbotType: string) => Promise<Chat[]>;
-  loadChatById: (chatId: string) => Promise<void>;
+  loadChatById: (chatId: string) => Promise<Chat | null>; // Updated to return Chat
+  deleteChatById: (chatId: string) => Promise<boolean>; // New function to delete chat
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -36,6 +38,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
   const [chatHistory, setChatHistory] = useState<{ [chatbotId: string]: Chat[] }>({});
   const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [isLoadingChat, setIsLoadingChat] = useState<boolean>(false); // New loading state
 
   // Helper function to convert category to lowercase
   const getChatbotType = useCallback((category: string): string => {
@@ -47,7 +50,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     return {
       id: apiChat.chatId || apiChat.id,
       chatId: apiChat.chatId,
-      title: apiChat.title || 'New Chat',
+      title: apiChat.title?.trim() || 'New Chat', // Added trim() to remove \n
       messages: (apiChat.messages || []).map((msg: any) => ({
         id: msg.id || `msg-${Date.now()}-${Math.random()}`,
         content: msg.message || msg.content,
@@ -77,24 +80,74 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     setCurrentChat(newChat);
   }, []);
 
-  // Load existing chat by ID
-  const loadChatById = useCallback(async (chatId: string) => {
+  // Updated loadChatById function that returns the loaded chat
+  const loadChatById = useCallback(async (chatId: string): Promise<Chat | null> => {
+    if (!currentChatbot) {
+      console.error('No chatbot selected');
+      return null;
+    }
+
     try {
+      setIsLoadingChat(true);
+      console.log('Loading chat by ID:', chatId);
+      
       const response = await api.get(`/api/chat/${chatId}`);
       const { chat } = response.data;
       
-      if (chat && currentChatbot) {
+      if (chat) {
         const transformedChat = transformApiChatToChat(chat, currentChatbot.id);
+        console.log('Chat loaded successfully:', transformedChat);
+        
         setCurrentChat(transformedChat);
+        return transformedChat;
+      } else {
+        console.log('No chat data found');
+        return null;
       }
     } catch (error) {
       console.error('Error loading chat:', error);
       // If chat doesn't exist, create new one
-      if (currentChatbot) {
-        createNewChat(currentChatbot.id);
-      }
+      createNewChat(currentChatbot.id);
+      return null;
+    } finally {
+      setIsLoadingChat(false);
     }
   }, [currentChatbot, transformApiChatToChat]);
+
+  // New function to delete chat by ID
+  const deleteChatById = useCallback(async (chatId: string): Promise<boolean> => {
+    try {
+      console.log('Deleting chat by ID:', chatId);
+      
+      // Call DELETE API
+      await api.delete(`/api/chat/${chatId}`);
+      
+      // Remove chat from local state if it exists in chatHistory
+      if (currentChatbot) {
+        setChatHistory(prev => {
+          const updatedHistory = { ...prev };
+          if (updatedHistory[currentChatbot.id]) {
+            updatedHistory[currentChatbot.id] = updatedHistory[currentChatbot.id].filter(
+              chat => chat.chatId !== chatId && chat.id !== chatId
+            );
+          }
+          return updatedHistory;
+        });
+      }
+      
+      // If the deleted chat is currently selected, create a new chat
+      if (currentChat && (currentChat.chatId === chatId || currentChat.id === chatId)) {
+        console.log('Deleted chat was currently selected, creating new chat');
+        createNewChat(currentChatbot?.id);
+      }
+      
+      console.log('Chat deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      return false;
+    }
+  }, [currentChatbot, currentChat]);
 
   // Send message function
   const sendMessage = useCallback(async (message: string) => {
@@ -150,7 +203,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
           setCurrentChat(prev => prev ? {
             ...prev,
-            title: chat.title.trim(),
+            title: chat.title?.trim() || 'New Chat',
             messages: [...updatedMessages, botMessage],
             updatedAt: new Date()
           } : null);
@@ -248,12 +301,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     currentChat,
     chatHistory,
     isTyping,
+    isLoadingChat, // Add new loading state
     selectChatbot,
     sendMessage,
     createNewChat,
     clearCurrentChat,
     getChatHistory,
-    loadChatById
+    loadChatById,
+    deleteChatById // Add new delete function
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

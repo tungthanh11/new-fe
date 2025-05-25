@@ -7,7 +7,7 @@ import { ThemeToggle } from '../ui/ThemeToggle';
 import { Trash2 } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { currentChatbot, clearChat } = useChat();
+  const { currentChatbot } = useChat();
   
   return (
     <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background">
@@ -28,21 +28,6 @@ export const Header: React.FC = () => {
         ) : (
           <h1 className="font-medium">AI Chat Assistant</h1>
         )}
-      </div>
-      
-      <div className="flex items-center gap-2">
-        {currentChatbot && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={clearChat}
-            className="text-muted-foreground"
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete Conversation
-          </Button>
-        )}
-        <ThemeToggle />
       </div>
     </header>
   );

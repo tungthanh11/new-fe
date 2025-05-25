@@ -14,21 +14,27 @@ import { Plus, Send, Trash2 } from "lucide-react";
 const ChatInterface: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     currentChatbot,
     currentChat,
     chatHistory,
     isTyping,
+    isLoadingChat, // New loading state
     selectChatbot,
     sendMessage,
     createNewChat,
     clearCurrentChat,
+    loadChatById, // Add loadChatById
   } = useChat();
   const [inputValue, setInputValue] = useState("");
   const { currentUser } = useAuth();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+
+  // Get chatId from URL search params
+  const searchParams = new URLSearchParams(location.search);
+  const chatId = searchParams.get('chatId');
 
   // Initialize chatbot when component mounts or ID changes
   useEffect(() => {
@@ -44,33 +50,67 @@ const ChatInterface: React.FC = () => {
         navigate("/chatbots");
       }
     }
-  }, [id, navigate]); // Remove selectChatbot and currentChatbot from dependencies
+  }, [id, navigate, selectChatbot, currentChatbot]);
+
+  // Load specific chat when chatId is provided in URL
+  useEffect(() => {
+    const loadSpecificChat = async () => {
+      if (chatId && currentChatbot) {
+        console.log('Loading specific chat:', chatId);
+        try {
+          const loadedChat = await loadChatById(chatId);
+          if (loadedChat) {
+            console.log('Chat loaded successfully, messages:', loadedChat.messages.length);
+          } else {
+            console.log('Failed to load chat, creating new one');
+            // If chat loading fails, redirect to new chat
+            navigate(`/chat/${currentChatbot.id}`);
+          }
+        } catch (error) {
+          console.error('Error loading chat:', error);
+          // If chat loading fails, redirect to new chat
+          navigate(`/chat/${currentChatbot.id}`);
+        }
+      } else if (currentChatbot && !chatId) {
+        // If no chatId in URL, create new chat
+        console.log('No chatId in URL, creating new chat');
+        createNewChat(currentChatbot.id);
+      }
+    };
+
+    loadSpecificChat();
+  }, [chatId, currentChatbot, loadChatById, createNewChat, navigate]);
 
   // Scroll to bottom when messages change or typing state changes
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentChat?.messages, isTyping]);
 
-  // Remove or comment out this console.log to prevent spam
-  // console.log("current chat:", currentChat);
-
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim() && !isTyping && currentChatbot) {
       const message = inputValue.trim();
       setInputValue("");
-      // Remove setTimeout, call directly
-      sendMessage(message);
+      // Call sendMessage directly
+      await sendMessage(message);
     }
   }, [inputValue, isTyping, currentChatbot, sendMessage]);
 
   const handleNewChat = useCallback(() => {
-    createNewChat();
-  }, [createNewChat]);
+    if (currentChatbot) {
+      createNewChat();
+      // Navigate to new chat URL without chatId
+      navigate(`/chat/${currentChatbot.id}`);
+    }
+  }, [createNewChat, currentChatbot, navigate]);
 
   const handleClearChat = useCallback(() => {
-    clearCurrentChat();
-  }, [clearCurrentChat]);
+    if (currentChatbot) {
+      clearCurrentChat();
+      // Navigate to new chat URL without chatId
+      navigate(`/chat/${currentChatbot.id}`);
+    }
+  }, [clearCurrentChat, currentChatbot, navigate]);
 
   // Render message content based on type
   const renderMessageContent = useCallback((message: Message) => {
@@ -173,19 +213,54 @@ const ChatInterface: React.FC = () => {
           </ReactMarkdown>
         );
       default:
-        return message.content;
+        return (
+          <ReactMarkdown
+            components={{
+              h1: ({ node, ...props }) => (
+                <h1 className="text-xl font-bold my-2" {...props} />
+              ),
+              h2: ({ node, ...props }) => (
+                <h2 className="text-lg font-bold my-2" {...props} />
+              ),
+              h3: ({ node, ...props }) => (
+                <h3 className="text-md font-bold my-1" {...props} />
+              ),
+              ul: ({ node, ...props }) => (
+                <ul className="list-disc pl-5 my-2" {...props} />
+              ),
+              ol: ({ node, ...props }) => (
+                <ol className="list-decimal pl-5 my-2" {...props} />
+              ),
+              li: ({ node, ...props }) => <li className="my-1" {...props} />,
+              p: ({ node, ...props }) => <p className="my-2" {...props} />,
+              a: ({ node, ...props }) => (
+                <a className="text-primary underline" {...props} />
+              ),
+              strong: ({ node, ...props }) => (
+                <strong className="font-bold" {...props} />
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        );
     }
   }, []);
 
   // Check if chatbot exists for redirect
   const chatbotExists = id ? mockChatbots.some((bot) => bot.id === id) : true;
 
-  // Loading state while chatbot is being selected
-  if (id && !currentChatbot && chatbotExists) {
+  // Loading state while chatbot is being selected or chat is being loaded
+  if (id && (!currentChatbot || isLoadingChat) && chatbotExists) {
     return (
       <AppLayout>
         <div className="h-full flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+            <p className="text-muted-foreground">
+              {isLoadingChat ? 'Loading chat...' : 'Loading chatbot...'}
+            </p>
+          </div>
         </div>
       </AppLayout>
     );
@@ -223,6 +298,11 @@ const ChatInterface: React.FC = () => {
               </AvatarFallback>
             </Avatar>
             <h2 className="font-medium">{currentChat.title || "New Chat"}</h2>
+            {currentChat.chatId && (
+              <span className="text-xs text-muted-foreground ml-2">
+                (ID: {currentChat.chatId.slice(-8)})
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -234,74 +314,71 @@ const ChatInterface: React.FC = () => {
             >
               <Plus className="h-4 w-4" />
             </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClearChat}
-              title="Delete this conversation"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
           </div>
         </div>
         
         {/* Messages */}
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
           <div className="max-w-3xl mx-auto space-y-4">
-            {currentChat.messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.sender === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+            {currentChat.messages.length === 0 && !isTyping ? (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No messages yet. Start a conversation!</p>
+              </div>
+            ) : (
+              currentChat.messages.map((message) => (
                 <div
-                  className={`flex max-w-[85%] ${
-                    message.sender === "user" ? "flex-row-reverse" : "flex-row"
+                  key={message.id}
+                  className={`flex ${
+                    message.sender === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  <div className="flex-shrink-0">
-                    <Avatar
-                      className={`h-8 w-8 ${
-                        message.sender === "user" ? "ml-2" : "mr-2"
-                      }`}
-                    >
-                      {message.sender === "user" ? (
-                        <>
-                          <AvatarImage src={currentUser?.avatar} />
-                          <AvatarFallback>
-                            {currentUser?.name?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </>
-                      ) : (
-                        <>
-                          <AvatarImage src={currentChatbot.avatar} />
-                          <AvatarFallback className={currentChatbot.color}>
-                            {currentChatbot.name.charAt(0)}
-                          </AvatarFallback>
-                        </>
-                      )}
-                    </Avatar>
-                  </div>
                   <div
-                    className={`rounded-lg px-4 py-2 ${
-                      message.sender === "user"
-                        ? "chat-message-user rounded-tr-none"
-                        : "chat-message-bot rounded-tl-none"
+                    className={`flex max-w-[85%] ${
+                      message.sender === "user" ? "flex-row-reverse" : "flex-row"
                     }`}
                   >
-                    <div>{renderMessageContent(message)}</div>
-                    <div className="text-xs opacity-70 text-right mt-1">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                    <div className="flex-shrink-0">
+                      <Avatar
+                        className={`h-8 w-8 ${
+                          message.sender === "user" ? "ml-2" : "mr-2"
+                        }`}
+                      >
+                        {message.sender === "user" ? (
+                          <>
+                            <AvatarImage src={currentUser?.avatar} />
+                            <AvatarFallback>
+                              {currentUser?.name?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </>
+                        ) : (
+                          <>
+                            <AvatarImage src={currentChatbot.avatar} />
+                            <AvatarFallback className={currentChatbot.color}>
+                              {currentChatbot.name.charAt(0)}
+                            </AvatarFallback>
+                          </>
+                        )}
+                      </Avatar>
+                    </div>
+                    <div
+                      className={`rounded-lg px-4 py-2 ${
+                        message.sender === "user"
+                          ? "chat-message-user rounded-tr-none"
+                          : "chat-message-bot rounded-tl-none"
+                      }`}
+                    >
+                      <div>{renderMessageContent(message)}</div>
+                      <div className="text-xs opacity-70 text-right mt-1">
+                        {message.timestamp.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
 
             {/* Typing indicator */}
             {isTyping && (
@@ -351,10 +428,10 @@ const ChatInterface: React.FC = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Type your message here..."
-              disabled={isTyping}
+              disabled={isTyping || isLoadingChat}
               className="flex-1 bg-background border border-input rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-input"
             />
-            <Button type="submit" disabled={!inputValue.trim() || isTyping}>
+            <Button type="submit" disabled={!inputValue.trim() || isTyping || isLoadingChat}>
               <Send className="h-5 w-5" />
             </Button>
           </form>
