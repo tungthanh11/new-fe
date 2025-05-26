@@ -58,8 +58,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         timestamp: new Date(msg.created_at || msg.timestamp || Date.now()),
         type: msg.type || 'text'
       })),
+      // Use created_at from API as both createdAt and updatedAt
       createdAt: new Date(apiChat.created_at || Date.now()),
-      updatedAt: new Date(apiChat.updated_at || apiChat.created_at || Date.now()),
+      updatedAt: new Date(apiChat.created_at || Date.now()), // Set updatedAt same as createdAt
       chatbotId: chatbotId
     };
   }, []);
@@ -288,8 +289,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       const response = await api.get(`/api/chat/history?chatbot_type=${chatbotType.toLowerCase()}`);
       const chats = response.data.chat_list || [];
       
-      // Transform API response to Chat format
-      return chats.map((apiChat: any) => transformApiChatToChat(apiChat, currentChatbot?.id || ''));
+      // Transform API response to Chat format and sort by created_at descending
+      const transformedChats = chats.map((apiChat: any) => transformApiChatToChat(apiChat, currentChatbot?.id || ''));
+      
+      // Sort by created_at in descending order (most recent first)
+      return transformedChats.sort((a: Chat, b: Chat) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     } catch (error) {
       console.error('Error fetching chat history:', error);
       return [];
