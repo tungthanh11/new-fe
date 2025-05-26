@@ -9,7 +9,7 @@ import axios from 'axios';
 
 // Create axios instance for API requests
 const api = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: import.meta.env.VITE_API_URL, // Access the environment variable
 });
 
 // Function to set auth token in axios headers
