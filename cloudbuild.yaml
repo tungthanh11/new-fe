@@ -17,3 +17,6 @@ steps:
 # Optionally, set the substitution for the project ID
 substitutions:
   _PROJECT_ID: 'singular-winter-454301'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
