@@ -7,7 +7,7 @@ export type User = {
 };
 
 export type ChatbotCategory = 
-  | "mathematics" 
+  | "cook" 
   | "law" 
   | "medical" 
   | "programming" 

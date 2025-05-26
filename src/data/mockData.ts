@@ -2,9 +2,9 @@ import { Chatbot, ChatbotCategory } from '@/types';
 
 // Mock categories with colors (lowercase keys)
 export const CATEGORIES: Record<ChatbotCategory, { color: string, description: string }> = {
-  "mathematics": {
+  "cook": {
     color: "chatbot-blue",
-    description: "Math problems and equations"
+    description: "Super Chief for cooking tips and recipes"
   },
   "law": {
     color: "chatbot-red",
@@ -32,12 +32,12 @@ export const CATEGORIES: Record<ChatbotCategory, { color: string, description: s
 export const mockChatbots: Chatbot[] = [
   {
     id: "chatbot-1",
-    name: "MathGenius",
-    description: "Solve complex math problems with step-by-step explanations",
-    category: "mathematics",
+    name: "MasterChief",
+    description: "Super Chief for cooking tips and recipes",
+    category: "cook",
     avatar: "https://cdn-icons-png.flaticon.com/512/4807/4807695.png",
     color: "bg-chatbot-blue",
-    usageCount: 1352
+    usageCount: 4000
   },
   {
     id: "chatbot-2",
@@ -88,7 +88,7 @@ export const mockChatbots: Chatbot[] = [
     id: "chatbot-7",
     name: "AlgebraHelper",
     description: "Algebra equations and explanations made simple",
-    category: "mathematics",
+    category: "cook",
     avatar: "https://cdn-icons-png.flaticon.com/512/3406/3406898.png",
     color: "bg-chatbot-blue",
     usageCount: 876
