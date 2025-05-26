@@ -35,7 +35,7 @@ export const mockChatbots: Chatbot[] = [
     name: "MasterChief",
     description: "Super Chief for cooking tips and recipes",
     category: "cook",
-    avatar: "https://cdn-icons-png.flaticon.com/512/4807/4807695.png",
+    avatar: "/cooking.png",
     color: "bg-chatbot-blue",
     usageCount: 4000
   },
@@ -44,7 +44,7 @@ export const mockChatbots: Chatbot[] = [
     name: "LegalEagle",
     description: "Get legal advice and explanations of complex laws",
     category: "law",
-    avatar: "https://cdn-icons-png.flaticon.com/512/2942/2942511.png",
+    avatar: "/legal-system.png",
     color: "bg-chatbot-red",
     usageCount: 872
   },
