@@ -36,6 +36,7 @@ export const Sidebar: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const { currentChat } = useChat();
   const location = useLocation();
+  const [isChatHistoryCollapsed, setIsChatHistoryCollapsed] = useState(false);
 
   // Parse current route information
   const { isOnChatbotPage, selectedChatbot, currentChatId } = useMemo(() => {
@@ -59,12 +60,15 @@ export const Sidebar: React.FC = () => {
   // If we're on a chatbot page, show ONLY ChatHistorySidebar
   if (isOnChatbotPage && selectedChatbot) {
     return (
-      <div className="flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-16">
+      <div className={cn(
+        "flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
+        isChatHistoryCollapsed ? "w-16" : "w-64"
+      )}>
         <ChatHistorySidebar 
           chatbot={selectedChatbot}
           currentChatId={currentChatId}
-          isCollapsed={true}
-          onToggleCollapse={() => {}}
+          isCollapsed={isChatHistoryCollapsed}
+          onToggleCollapse={() => setIsChatHistoryCollapsed(!isChatHistoryCollapsed)}
         />
       </div>
     );
@@ -75,7 +79,7 @@ export const Sidebar: React.FC = () => {
     <div className="flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-20">
       {/* Sidebar header */}
       <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
-        <span className="font-bold text-sm">Menu</span>
+        <span className="font-bold text-sm">Chatbot</span>
       </div>
       
       {/* Main navigation */}

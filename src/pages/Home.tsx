@@ -74,7 +74,7 @@ const Home: React.FC = () => {
         {/* Welcome section */}
         <section className="mb-8">
           <h1 className="text-3xl font-bold mb-2">
-            Welcome back, {currentUser?.name}!
+            Welcome, {currentUser?.name}!
           </h1>
           <p className="text-muted-foreground">
             Get help from specialized AI assistants in various domains
