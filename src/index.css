@@ -5,44 +5,50 @@
 
 @layer base {
   :root {
-    --background: 240 10% 98%;
-    --foreground: 240 10% 3.9%;
+    /* Light theme với pastel colors - tươi mới */
+    --background: 45 100% 98%;
+    --foreground: 240 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 240 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 240 20% 15%;
 
-    --primary: 259 80% 75%;
+    /* Primary: Pastel cam/coral */
+    --primary: 20 90% 70%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    /* Secondary: Pastel xanh dương */
+    --secondary: 200 80% 85%;
+    --secondary-foreground: 240 20% 15%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    /* Muted: Pastel vàng nhạt */
+    --muted: 50 90% 95%;
+    --muted-foreground: 240 10% 40%;
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    /* Accent: Pastel xanh lá */
+    --accent: 150 70% 80%;
+    --accent-foreground: 240 20% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 259 80% 75%;
+    --border: 45 30% 88%;
+    --input: 45 30% 88%;
+    --ring: 20 90% 70%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 11% 16%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 259 80% 65%;
+    /* Sidebar light theme với pastel gradient */
+    --sidebar-background: 200 60% 96%;
+    --sidebar-foreground: 240 20% 15%;
+    --sidebar-primary: 20 90% 70%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 25%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 4% 20%;
-    --sidebar-ring: 259 80% 75%;
+    --sidebar-accent: 150 50% 88%;
+    --sidebar-accent-foreground: 240 20% 15%;
+    --sidebar-border: 200 40% 90%;
+    --sidebar-ring: 20 90% 70%;
   }
 
   .dark {
@@ -96,6 +102,34 @@
 }
 
 @layer utilities {
+  /* Completely remove scrollbar for embla carousel - allow scroll but hide scrollbar */
+  .embla__viewport,
+  .embla__container {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  .embla__viewport::-webkit-scrollbar,
+  .embla__container::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+  
+  /* Hide scrollbar in all carousel elements */
+  [class*="carousel"] *,
+  [class*="Carousel"] * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  [class*="carousel"] *::-webkit-scrollbar,
+  [class*="Carousel"] *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+
   /* Custom scrollbar styling */
   .scrollbar-thin {
     scrollbar-width: thin;

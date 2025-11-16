@@ -6,22 +6,36 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
 import { CATEGORIES, mockChatbots } from '@/data/mockData';
 import { cn } from '@/lib/utils';
-import { ChevronRight, Grid2X2, Home, LogOut, Settings } from 'lucide-react';
+import { Grid2X2, Home, LogOut, Settings, ChefHat, Scale, Heart, Code, Briefcase, FlaskConical } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatbotCategory } from '@/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatHistorySidebar } from './ChatHistorySidebar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+// Map color names to hex values
+const colorMap: Record<string, string> = {
+  "chatbot-blue": "#4285F4",
+  "chatbot-green": "#34A853",
+  "chatbot-red": "#EA4335",
+  "chatbot-purple": "#9b87f5",
+  "chatbot-yellow": "#FBBC05",
+  "chatbot-teal": "#00ACC1",
+};
+
+// Map categories to icons
+const categoryIcons: Record<ChatbotCategory, React.ComponentType<{ className?: string }>> = {
+  cook: ChefHat,
+  law: Scale,
+  medical: Heart,
+  programming: Code,
+  business: Briefcase,
+  science: FlaskConical,
+};
 
 export const Sidebar: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const { currentChat } = useChat();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<ChatbotCategory | 'all'>('all');
-  
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
 
   // Parse current route information
   const { isOnChatbotPage, selectedChatbot, currentChatId } = useMemo(() => {
@@ -42,239 +56,187 @@ export const Sidebar: React.FC = () => {
     };
   }, [location.pathname, location.search, currentChat]);
 
-  const filteredChatbots = useMemo(() => {
-    return activeCategory === 'all' 
-      ? mockChatbots
-      : mockChatbots.filter(bot => bot.category === activeCategory);
-  }, [activeCategory]);
-
-  // If we're on a chatbot page, show ONLY ChatHistorySidebar - không render gì khác
+  // If we're on a chatbot page, show ONLY ChatHistorySidebar
   if (isOnChatbotPage && selectedChatbot) {
     return (
-      <div 
-        className={cn(
-          "flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
-          isCollapsed ? "w-16" : "w-64"
-        )}
-      >
+      <div className="flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-16">
         <ChatHistorySidebar 
           chatbot={selectedChatbot}
           currentChatId={currentChatId}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={toggleSidebar}
+          isCollapsed={true}
+          onToggleCollapse={() => {}}
         />
       </div>
     );
   }
 
-  // Default sidebar for home page - chỉ render khi KHÔNG ở trang chatbot
+  // Rail Sidebar - always compact with icon + short name
   return (
-    <div 
-      className={cn(
-        "flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64"
-      )}
-    >
+    <div className="flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-20">
       {/* Sidebar header */}
-      <div className="h-16 flex items-center px-3 border-b border-sidebar-border">
-        {!isCollapsed && (
-          <div className="flex-1 flex items-center">
-            <span className="font-bold text-lg">Cloudy Meowy Chatbot</span>
-          </div>
-        )}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8 p-0"
-        >
-          <ChevronRight className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
-        </Button>
+      <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
+        <span className="font-bold text-sm">Menu</span>
       </div>
       
       {/* Main navigation */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-y-auto py-2">
         {/* Primary nav links */}
-        <nav className="px-2 pt-3 space-y-1">
+        <nav className="px-2 space-y-2">
           <Link to="/">
             <Button 
               variant="ghost" 
+              size="sm"
               className={cn(
-                "w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                location.pathname === "/" && "bg-sidebar-accent text-sidebar-accent-foreground",
-                isCollapsed && "justify-center"
+                "w-full flex-col h-auto py-2 px-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                location.pathname === "/" && "bg-sidebar-accent text-sidebar-accent-foreground"
               )}
             >
-              <Home className="h-5 w-5 mr-2" />
-              {!isCollapsed && <span>Home</span>}
+              <Home className="h-5 w-5 mb-1" />
+              <span className="text-xs">Home</span>
             </Button>
           </Link>
           <Link to="/chatbots">
             <Button 
               variant="ghost" 
+              size="sm"
               className={cn(
-                "w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                location.pathname === "/chatbots" && "bg-sidebar-accent text-sidebar-accent-foreground",
-                isCollapsed && "justify-center"
+                "w-full flex-col h-auto py-2 px-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                location.pathname === "/chatbots" && "bg-sidebar-accent text-sidebar-accent-foreground"
               )}
             >
-              <Grid2X2 className="h-5 w-5 mr-2" />
-              {!isCollapsed && <span>All Chatbots</span>}
+              <Grid2X2 className="h-5 w-5 mb-1" />
+              <span className="text-xs">All</span>
             </Button>
           </Link>
         </nav>
+
+        {/* Divider */}
+        <div className="px-2 py-2">
+          <div className="h-px bg-sidebar-border" />
+        </div>
         
-        {/* Categories section */}
-        {!isCollapsed && (
-          <CategorySection 
-            activeCategory={activeCategory}
-            setActiveCategory={setActiveCategory}
-          />
-        )}
-        
-        {/* Chatbot list */}
-        {!isCollapsed && (
-          <ChatbotList 
-            activeCategory={activeCategory}
-            filteredChatbots={filteredChatbots}
-            currentPath={location.pathname}
-          />
-        )}
+        {/* Categories with Popover */}
+        <nav className="px-2 space-y-2">
+          {Object.entries(CATEGORIES).map(([category, { color, description }]) => {
+            const CategoryIcon = categoryIcons[category as ChatbotCategory];
+            const categoryChatbots = mockChatbots.filter(bot => bot.category === category);
+            
+            return (
+              <CategoryPopover
+                key={category}
+                category={category as ChatbotCategory}
+                color={color}
+                description={description}
+                icon={CategoryIcon}
+                chatbots={categoryChatbots}
+                currentPath={location.pathname}
+              />
+            );
+          })}
+        </nav>
       </div>
       
-      {/* User section - chỉ hiển thị trong default sidebar */}
-      <UserSection 
-        currentUser={currentUser} 
-        logout={logout} 
-        isCollapsed={isCollapsed} 
-      />
+      {/* User section */}
+      <div className="h-16 flex flex-col items-center justify-center border-t border-sidebar-border py-2 space-y-1">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          asChild
+          className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8"
+        >
+          <Link to="/settings">
+            <Settings className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => logout()}
+          className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8"
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
 
-// Separate components for better organization
-const CategorySection: React.FC<{
-  activeCategory: ChatbotCategory | 'all';
-  setActiveCategory: (category: ChatbotCategory | 'all') => void;
-}> = ({ activeCategory, setActiveCategory }) => (
-  <>
-    <div className="px-4 pt-4 pb-2">
-      <h3 className="text-xs uppercase text-sidebar-foreground/60 font-semibold tracking-wider">
-        Categories
-      </h3>
-    </div>
-    <div className="px-2 space-y-1">
-      <Button 
-        variant="ghost" 
-        className={cn(
-          "w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-          activeCategory === 'all' && "bg-sidebar-accent text-sidebar-accent-foreground"
-        )}
-        onClick={() => setActiveCategory('all')}
-      >
-        All Categories
-      </Button>
-      {Object.entries(CATEGORIES).map(([category, { color }]) => (
-        <Button 
-          key={category}
-          variant="ghost" 
-          className={cn(
-            "w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            activeCategory === category && "bg-sidebar-accent text-sidebar-accent-foreground"
-          )}
-          onClick={() => setActiveCategory(category as ChatbotCategory)}
-        >
-          <span className={`w-2 h-2 rounded-full bg-${color} mr-2`}></span>
-          {category}
-        </Button>
-      ))}
-    </div>
-  </>
-);
-
-const ChatbotList: React.FC<{
-  activeCategory: ChatbotCategory | 'all';
-  filteredChatbots: any[];
+// Category Popover Component
+const CategoryPopover: React.FC<{
+  category: ChatbotCategory;
+  color: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  chatbots: any[];
   currentPath: string;
-}> = ({ activeCategory, filteredChatbots, currentPath }) => (
-  <>
-    <div className="px-4 pt-4 pb-2">
-      <h3 className="text-xs uppercase text-sidebar-foreground/60 font-semibold tracking-wider">
-        {activeCategory === 'all' ? 'Recent Chatbots' : `${activeCategory} Chatbots`}
-      </h3>
-    </div>
-    <ScrollArea className="px-2 flex-1">
-      <div className="space-y-1">
-        {filteredChatbots.slice(0, 6).map((bot) => (
-          <Link key={bot.id} to={`/chat/${bot.id}`}>
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                currentPath === `/chat/${bot.id}` && "bg-sidebar-accent text-sidebar-accent-foreground"
-              )}
-            >
-              <Avatar className="h-6 w-6 mr-2">
-                <AvatarImage src={bot.avatar} />
-                <AvatarFallback className={`${bot.color} text-white`}>
-                  {bot.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="truncate">{bot.name}</span>
-            </Button>
-          </Link>
-        ))}
-      </div>
-    </ScrollArea>
-  </>
-);
+}> = ({ category, color, description, icon: Icon, chatbots, currentPath }) => {
+  const [open, setOpen] = useState(false);
 
-const UserSection: React.FC<{
-  currentUser: any;
-  logout: () => void;
-  isCollapsed: boolean;
-}> = ({ currentUser, logout, isCollapsed }) => (
-  <div className="h-16 flex items-center px-3 border-t border-sidebar-border">
-    {!isCollapsed ? (
-      <>
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={currentUser?.avatar} />
-          <AvatarFallback>{currentUser?.name?.charAt(0) || 'U'}</AvatarFallback>
-        </Avatar>
-        <div className="ml-2 flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{currentUser?.name}</p>
-          <p className="text-xs text-sidebar-foreground/70 truncate">{currentUser?.email}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            asChild
-            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8"
-          >
-            <Link to="/settings">
-              <Settings className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => logout()}
-            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </>
-    ) : (
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        onClick={() => logout()}
-        className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-full h-8 w-8 mx-auto"
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          className="w-full flex-col h-auto py-2 px-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <div className="relative">
+            <Icon className="h-5 w-5 mb-1" />
+            <span 
+              className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+              style={{ backgroundColor: colorMap[color] }}
+            />
+          </div>
+          <span className="text-xs capitalize truncate w-full">{category}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent 
+        side="right" 
+        align="start"
+        className="w-64 p-2"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <LogOut className="h-4 w-4" />
-      </Button>
-    )}
-  </div>
-);
+        <div className="space-y-1">
+          <div className="px-2 py-1.5 border-b border-border mb-2">
+            <h4 className="font-semibold text-sm capitalize">{category}</h4>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
+          <div className="max-h-[400px] overflow-y-auto space-y-1">
+            {chatbots.length > 0 ? (
+              chatbots.map((bot) => (
+                <Link 
+                  key={bot.id} 
+                  to={`/chat/${bot.id}`}
+                  onClick={() => setOpen(false)}
+                >
+                  <Button 
+                    variant="ghost" 
+                    className={cn(
+                      "w-full justify-start h-auto py-2 px-2 hover:bg-accent",
+                      currentPath === `/chat/${bot.id}` && "bg-accent"
+                    )}
+                  >
+                    <Avatar className="h-6 w-6 mr-2">
+                      <AvatarImage src={bot.avatar} />
+                      <AvatarFallback className={`${bot.color} text-white text-xs`}>
+                        {bot.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-sm font-medium truncate">{bot.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{bot.description}</p>
+                    </div>
+                  </Button>
+                </Link>
+              ))
+            ) : (
+              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                No chatbots in this category
+              </div>
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
