@@ -76,15 +76,15 @@ const Home: React.FC = () => {
           <h1 className="text-3xl font-bold mb-2">
             Welcome, {currentUser?.name}!
           </h1>
-          <p className="text-muted-foreground">
+          {/* <p className="text-muted-foreground">
             Get help from specialized AI assistants in various domains
-          </p>
+          </p> */}
         </section>
 
         {/* Popular chatbots */}
         <section className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Recent Chatbots</h2>
+            <h2 className="text-2xl font-semibold">Popular Chatbots</h2>
             <Button variant="outline" asChild>
               <Link to="/chatbots">View all</Link>
             </Button>

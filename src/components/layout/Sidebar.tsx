@@ -79,7 +79,7 @@ export const Sidebar: React.FC = () => {
     <div className="flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border w-20">
       {/* Sidebar header */}
       <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
-        <span className="font-bold text-sm">Chatbot</span>
+        <span className="font-bold text-sm">Menu</span>
       </div>
       
       {/* Main navigation */}
